@@ -22,3 +22,7 @@
 ## [3.1.0] - 2024-10-04
 ### Added
 - Added lazy loading control
+
+## [4.0.0] - 2025-03-16
+### Laravel 12 Support
+- Laravel 12 Support added.

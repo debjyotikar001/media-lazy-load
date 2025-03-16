@@ -14,7 +14,7 @@ A Laravel package to help users implement media lazy loading using PHP and JavaS
 
 ## Installation
 
-Media Lazy Load for Laravel requires PHP 7.4 or higher. This particular version supports Laravel 8.x, 9.x, 10.x, and 11.x.
+Media Lazy Load for Laravel requires PHP 7.4 or higher. This particular version supports Laravel 8.x, 9.x, 10.x, 11.x, and 12.x.
 
 To get the latest version, simply require the project using [Composer](https://getcomposer.org):
 
