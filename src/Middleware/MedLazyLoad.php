@@ -31,15 +31,39 @@ class MedLazyLoad
       }
 
       // img, iframe, video and audio
-      $content = preg_replace('/<(img|iframe|source)([^>]*?)src=/', '<$1$2data-src=', $content);
+      $content = preg_replace_callback(
+        '/<(img|iframe|source|video|audio)([^>]*?)src=/i',
+        function ($matches) {
+          $tag = $matches[1];
+          $attrs = $matches[2];
+    
+          // If media="no-lazy" → keep src as-is
+          if (preg_match('/media\s*=\s*"(no-lazy)"/i', $attrs)) {
+            return "<{$tag}{$attrs}src="; // unchanged
+          }
+    
+          // Otherwise → convert src → data-src
+          return "<{$tag}{$attrs}data-src=";
+        },
+        $content
+      );
 
       // style {background-image:url()}
       $content = preg_replace_callback(
-        '/<([a-zA-Z]+)([^>]*?)style\s*=\s*"(.*?)background-image\s*:\s*url\((["\']?)(.*?)\4\)(.*?);?(.*?)"(.*?)>/',
+        '/<([a-zA-Z]+)([^>]*?)style\s*=\s*"(.*?)background-image\s*:\s*url\((["\']?)(.*?)\4\)(.*?);?(.*?)"(.*?)>/i',
         function ($matches) {
+          $tagName = $matches[1];
+          $attrs   = $matches[2];
+    
+          // If media="no-lazy" → keep style as-is
+          if (preg_match('/media\s*=\s*"(no-lazy)"/i', $attrs)) {
+            return "<{$tagName}{$attrs} style=\"{$matches[3]}background-image:url({$matches[5]}){$matches[6]};{$matches[7]}\"{$matches[8]}>";
+          }
+    
+          // Remove background-image from inline style
           $styleWithoutBg = trim(preg_replace('/background-image\s*:\s*url\((["\']?).*?\1\);?/', '', $matches[3]));
           $newStyle = !empty($styleWithoutBg) ? 'style="' . $styleWithoutBg . '"' : '';
-          return "<{$matches[1]}{$matches[2]} $newStyle data-bg=\"{$matches[5]}\" {$matches[8]}>";
+          return "<{$tagName}{$attrs} $newStyle data-bg=\"{$matches[5]}\" {$matches[8]}>";
         },
         $content
       );

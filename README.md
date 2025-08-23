@@ -6,11 +6,12 @@ A Laravel package to help users implement media lazy loading using PHP and JavaS
 
 1. Media (images, iframes, videos and audios) lazy loading for faster loading. [Read More...](#enable)
 2. Supports excluding specific routes urls paths from being media lazy loading. [Read More...](#skip-or-ignore-specific-routes-urls)
-3. Configurable to skip lazy loading for specific application Environment. [Read More...](#allowed-environments)
-4. Easy integration with Laravel's middleware system. [Read More...](#register-the-middleware)
-5. Supports lazy loading of background images set via inline CSS `background-image:url(...)`.
-6. Customizable root margin allows you to control when elements start loading relative to their position in the viewport. [Read More...](#root-margin)
-7. Adjustable threshold defines how much of an element must be visible before it loads. [Read More...](#threshold)
+3. Supports excluding specific media from lazy loading. [Read More...](#exclude-specific-media-from-lazy-loading)
+4. Configurable to skip lazy loading for specific application Environment. [Read More...](#allowed-environments)
+5. Easy integration with Laravel's middleware system. [Read More...](#register-the-middleware)
+6. Supports lazy loading of background images set via inline CSS `background-image:url(...)`.
+7. Customizable root margin allows you to control when elements start loading relative to their position in the viewport. [Read More...](#root-margin)
+8. Adjustable threshold defines how much of an element must be visible before it loads. [Read More...](#threshold)
 
 ## Installation
 
@@ -118,6 +119,23 @@ If you want to skip or ignore specific routes urls, then you have to set paths i
 - `user/*`: Any URL starting with `user/` (like `user/profile`, `user/settings`) will be excluded.
 - `*_dashboard`: Any URL ending with `_dashboard` (like `admin_dashboard`, `user_dashboard`) will be excluded.
 - `*/download/*`: Any URL has `download` (like `pdf/download/001`, `image/download/debjyotikar001`) will be excluded.
+
+### Exclude Specific Media from Lazy Loading
+If you want certain media (image, iframe, video, audio, or elements with `background-image`) to **load normally** without lazy loading, you can add the attribute `media="no-lazy"` to that element. For example:
+
+```html
+<!-- This image will NOT be lazy loaded -->
+<img src="/logo.png" media="no-lazy">
+
+<!-- This iframe will NOT be lazy loaded -->
+<iframe src="https://www.youtube.com/embed/12345" media="no-lazy"></iframe>
+
+<!-- This video will NOT be lazy loaded -->
+<video src="/intro.mp4" media="no-lazy" autoplay muted></video>
+
+<!-- This background image will NOT be lazy loaded -->
+<div style="background-image:url('/banner.jpg')" media="no-lazy"></div>
+```
 
 ### Root Margin
 This option allows you to control how early or late the elements should be lazy-loaded relative to their position in the viewport. You can set values in the `config/medialazyload.php` file, default `'0px 0px 100px 0px'`. Format: `'top right bottom left'`. For example:

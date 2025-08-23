@@ -26,3 +26,7 @@
 ## [4.0.0] - 2025-03-16
 ### Laravel 12 Support
 - Laravel 12 Support added.
+
+## [4.0.1] - 2025-08-23
+### No Lazy added
+- media="no-lazy" added.
