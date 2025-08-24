@@ -9,4 +9,4 @@ If you find an issue, or have a better way to do something, feel free to open an
 - Push to the branch (`git push origin feature-branch`).
 - Create a pull request.
 
-Thank you for considering contributing to ImageLazyLoad!
+Thank you for considering contributing to MediaLazyLoad!

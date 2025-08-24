@@ -30,3 +30,7 @@
 ## [4.0.1] - 2025-08-23
 ### No Lazy added
 - media="no-lazy" added.
+
+## [4.1.0] - 2025-08-24
+### Fixed
+- Fix some minor code issues.

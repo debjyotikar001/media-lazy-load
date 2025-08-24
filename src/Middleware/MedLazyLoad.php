@@ -32,18 +32,21 @@ class MedLazyLoad
 
       // img, iframe, video and audio
       $content = preg_replace_callback(
-        '/<(img|iframe|source|video|audio)([^>]*?)src=/i',
+        '/<(img|iframe|source|video|audio)([^>]*?)>/i',
         function ($matches) {
-          $tag = $matches[1];
-          $attrs = $matches[2];
-    
+          $fullTag = $matches[0];
+          
           // If media="no-lazy" → keep src as-is
-          if (preg_match('/media\s*=\s*"(no-lazy)"/i', $attrs)) {
-            return "<{$tag}{$attrs}src="; // unchanged
+          if (preg_match('/media\s*=\s*["\']no-lazy["\']/', $fullTag)) {
+            return $fullTag; // unchanged
           }
-    
-          // Otherwise → convert src → data-src
-          return "<{$tag}{$attrs}data-src=";
+      
+          // Otherwise → convert src → data-media-src
+          if (preg_match('/\ssrc\s*=/', $fullTag)) {
+            return preg_replace('/\ssrc\s*=/', ' data-media-src=', $fullTag);
+          }
+      
+          return $fullTag;
         },
         $content
       );
@@ -52,95 +55,115 @@ class MedLazyLoad
       $content = preg_replace_callback(
         '/<([a-zA-Z]+)([^>]*?)style\s*=\s*"(.*?)background-image\s*:\s*url\((["\']?)(.*?)\4\)(.*?);?(.*?)"(.*?)>/i',
         function ($matches) {
+          $fullTag = $matches[0];
+
+          // If media="no-lazy" → keep style as-is
+          if (preg_match('/media\s*=\s*["\']no-lazy["\']/', $fullTag)) {
+            return $fullTag; // unchanged
+          }
+
           $tagName = $matches[1];
           $attrs   = $matches[2];
-    
-          // If media="no-lazy" → keep style as-is
-          if (preg_match('/media\s*=\s*"(no-lazy)"/i', $attrs)) {
-            return "<{$tagName}{$attrs} style=\"{$matches[3]}background-image:url({$matches[5]}){$matches[6]};{$matches[7]}\"{$matches[8]}>";
-          }
-    
+          
           // Remove background-image from inline style
           $styleWithoutBg = trim(preg_replace('/background-image\s*:\s*url\((["\']?).*?\1\);?/', '', $matches[3]));
           $newStyle = !empty($styleWithoutBg) ? 'style="' . $styleWithoutBg . '"' : '';
-          return "<{$tagName}{$attrs} $newStyle data-bg=\"{$matches[5]}\" {$matches[8]}>";
+          return "<{$tagName}{$attrs} $newStyle data-media-bg=\"{$matches[5]}\" {$matches[8]}>";
         },
         $content
       );
 
       // JavaScript code
       $javascript = "<script>
-          let loadMedia = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-              if (entry.isIntersecting) {
-                let ele = entry.target;
-                if (['IMG', 'IFRAME'].includes(ele.tagName)) {
-                  const dataSrc = ele.getAttribute('data-src');
-                  if (dataSrc) {
-                    ele.setAttribute('src', dataSrc);
-                    ele.removeAttribute('data-src');
+            // Simple and direct lazy loading
+            const observer = new IntersectionObserver((entries) => {
+              entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                  const el = entry.target;
+                  
+                  // Handle data-media-src
+                  if (el.hasAttribute('data-media-src')) {
+                    el.setAttribute('src', el.getAttribute('data-media-src'));
+                    el.removeAttribute('data-media-src');
+                    
+                    // Reload video/audio if needed
+                    if (el.tagName === 'VIDEO' || el.tagName === 'AUDIO') {
+                      el.load();
+                    }
+                    
+                    // Reload parent video/audio for source tags
+                    if (el.tagName === 'SOURCE') {
+                      const parent = el.parentElement;
+                      if (parent && (parent.tagName === 'VIDEO' || parent.tagName === 'AUDIO')) {
+                        parent.load();
+                      }
+                    }
                   }
-                }
-                if (ele.tagName === 'SOURCE') {
-                  const dataSrc = ele.getAttribute('data-src');
-                  if (dataSrc) {
-                    ele.setAttribute('src', dataSrc);
-                    ele.removeAttribute('data-src');
-                    ele.closest('video, audio').load();
+                  
+                  // Handle data-media-bg
+                  if (el.hasAttribute('data-media-bg')) {
+                    el.style.backgroundImage = 'url(' + el.getAttribute('data-media-bg') + ')';
+                    el.removeAttribute('data-media-bg');
                   }
+                  
+                  observer.unobserve(el);
                 }
-                if (ele.hasAttribute('data-bg')) {
-                  const bgUrl = ele.getAttribute('data-bg');
-                  ele.style.backgroundImage = 'url(' + bgUrl + ')';
-                  ele.removeAttribute('data-bg');
-                }
-                observer.unobserve(ele);
-              }
+              });
+            }, {
+              rootMargin: '" . config('medialazyload.rootMargin') . "',
+              threshold: " . config('medialazyload.threshold') . "
             });
-          }, {
-            rootMargin: '" . config('medialazyload.rootMargin') . "',
-            threshold: " . config('medialazyload.threshold') . "
-          });
 
-          document.querySelectorAll('img[data-src], iframe[data-src], source[data-src], [data-bg]').forEach((element) => {
-            loadMedia.observe(element);
-          });
-        </script>";
+            // Start observing when page loads
+            window.addEventListener('load', () => {
+              document.querySelectorAll('[data-media-src], [data-media-bg]').forEach(el => observer.observe(el));
+            });
+          </script>";
 
       // JQuery code
       $jquery = "<script>
-          let loadMedia = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-              if (entry.isIntersecting) {
-                const ele = $(entry.target);
-                if (ele.is('img, iframe')) {
-                  const dataSrc = ele.data('src');
-                  if (dataSrc) { ele.attr('src', dataSrc).removeAttr('data-src'); }
-                }
-                if (ele.is('source')) {
-                  const dataSrc = ele.data('src');
-                  if (dataSrc) {
-                    ele.attr('src', dataSrc).removeAttr('data-src');
-                    ele.closest('video, audio')[0].load();
+            const observer = new IntersectionObserver((entries) => {
+              entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                  const \$el = \$(entry.target);
+                  
+                  // Handle data-media-src
+                  if (\$el.attr('data-media-src')) {
+                    \$el.attr('src', \$el.attr('data-media-src')).removeAttr('data-media-src');
+                    
+                    // Reload video/audio if needed
+                    if (entry.target.tagName === 'VIDEO' || entry.target.tagName === 'AUDIO') {
+                      entry.target.load();
+                    }
+                    
+                    // Reload parent video/audio for source tags
+                    if (entry.target.tagName === 'SOURCE') {
+                      const parent = \$el.parent('video, audio')[0];
+                      if (parent) parent.load();
+                    }
                   }
+                  
+                  // Handle data-media-bg
+                  if (\$el.attr('data-media-bg')) {
+                    \$el.css('background-image', 'url(' + \$el.attr('data-media-bg') + ')').removeAttr('data-media-bg');
+                  }
+                  
+                  observer.unobserve(entry.target);
                 }
-                if (ele.data('bg')) {
-                  const bgUrl = ele.data('bg');
-                  ele.css('background-image', 'url(' + bgUrl + ')').removeAttr('data-bg');
-                }
-                observer.unobserve(entry.target);
-              }
+              });
+            }, {
+              rootMargin: '" . config('medialazyload.rootMargin') . "',
+              threshold: " . config('medialazyload.threshold') . "
             });
-          }, {
-            rootMargin: '" . config('medialazyload.rootMargin') . "',
-            threshold: " . config('medialazyload.threshold') . "
-          });
-
-          $('img[data-src], iframe[data-src], source[data-src], [data-bg]').each(function() {
-            loadMedia.observe(this);
-          });
-        </script>";
-
+        
+            // Start observing when document ready
+            \$(document).ready(() => {
+              \$('[data-media-src], [data-media-bg]').each(function() {
+                observer.observe(this);
+              });
+            });
+          </script>";
+  
       $javascriptCode = $javascript;
       if (config('medialazyload.jquery')) {
         $content = str_replace('</head>', '<script src="' . config('medialazyload.jqueryUrl') . '"></script></head>', $content);
