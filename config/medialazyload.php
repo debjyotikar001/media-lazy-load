@@ -25,22 +25,6 @@ return [
 
   /*
   |--------------------------------------------------------------------------
-  | Jquery for Lazy Loading
-  |--------------------------------------------------------------------------
-  |
-  | This option determines whether jQuery or plain JavaScript will be used
-  | to handle lazy loading. If set to true, the jQuery library will be used,
-  | and you can specify its CDN URL below. If set to false, plain JavaScript
-  | will handle the lazy loading.
-  |
-  | Default: false
-  |
-  */
-  'jquery' => env('MEDLAZYLOAD_JQUERY', false),
-  'jqueryUrl' => env('MEDLAZYLOAD_JQUERY_URL', 'https://code.jquery.com/jquery-3.7.1.min.js'),
-
-  /*
-  |--------------------------------------------------------------------------
   | Allowed Environments
   |--------------------------------------------------------------------------
   |
@@ -64,12 +48,30 @@ return [
   |
   */
   'skip_urls' => [
-      // '/',
-      // 'about',
-      // 'user/*',
-      // '*_dashboard',
-      // '*/download/*',
-    ],
+    // '/',
+    // 'about',
+    // 'user/*',
+    // '*_dashboard',
+    // '*/download/*',
+  ],
+
+  /*
+  |--------------------------------------------------------------------------
+  | LazyHtml: Excluded User Agents
+  |--------------------------------------------------------------------------
+  |
+  | Here you may define a list of User Agents that should be excluded
+  | from lazy loading. If the current request's User Agent matches
+  | any in this list, the <template> wrappers will be removed
+  | and the HTML will render normally.
+  |
+  | Example: ['Googlebot', 'Bingbot', 'Slurp']
+  |
+  */
+  'excluded_user_agents' => [
+    // 'Googlebot',
+    // 'Bingbot',
+  ],
 
   /*
   |--------------------------------------------------------------------------

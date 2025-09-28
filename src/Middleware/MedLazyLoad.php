@@ -3,7 +3,6 @@
 namespace Debjyotikar001\MediaLazyLoad\Middleware;
 
 use Closure;
-use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -18,19 +17,104 @@ class MedLazyLoad
   {
     $response = $next($request);
 
-    if ($response->isSuccessful() && config('medialazyload.enabled')) {
-      $content = $response->getContent();
+    if (!$response->isSuccessful()) return $response;
 
-      if (!in_array(config('app.env'), explode(',', config('medialazyload.allowed_envs')))) { return $response; }
+    // Only process HTML responses
+    if (!str_contains($response->headers->get('Content-Type'), 'text/html')) return $response;
 
+    $content = $response->getContent();
+
+    /*
+    |--------------------------------------------------------------------------
+    | HTML Lazy Loading (Blade @lazyHtml / @endLazyHtml)
+    |--------------------------------------------------------------------------
+    */
+    $excludedAgents = config('medialazyload.excluded_user_agents', []);
+    if (!empty($excludedAgents)) {
+      $userAgent = $request->userAgent();
+
+      foreach ($excludedAgents as $agent) {
+        if ($agent && stripos($userAgent, $agent) !== false) {
+          // Remove <template> wrappers for excluded user agents
+          $content = preg_replace(
+            [
+              '/<template[^>]*class="lazy-html"[^>]*data-lazyhtml="true"[^>]*>/i',
+              '/<\/template\s*data-lazyhtml>/i',
+            ],
+            ['', ''],
+            $content
+          );
+
+          break;
+        }
+      }
+    }
+
+    // JavaScript code
+    $htmlJs = "<script>
+          function revealTemplate(template) {
+            // Clone template content and insert before the template
+            template.parentNode.insertBefore(template.content.cloneNode(true), template);
+
+            // Remove the template itself
+            template.remove();
+          }
+
+          function initLazyTemplates() {
+            const templates = document.querySelectorAll('template.lazy-html[data-lazyhtml=\"true\"]');
+
+            if (!(\"IntersectionObserver\" in window)) {
+              // Fallback: load all immediately
+              templates.forEach(t => revealTemplate(t));
+              return;
+            }
+
+            const observer = new IntersectionObserver((entries, obs) => {
+              entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                  revealTemplate(entry.target);
+                  obs.unobserve(entry.target); // Stop observing once revealed
+                }
+              });
+            }, {
+              rootMargin: '" . config('medialazyload.rootMargin') . "',
+              threshold: " . config('medialazyload.threshold') . "
+            });
+
+            templates.forEach(t => observer.observe(t));
+          }
+
+          // Start observing when page loads
+          window.addEventListener('load', initLazyTemplates);
+        </script>";
+
+    // Add Javascript code
+    $content = str_replace('</body>', $htmlJs . '</body>', $content);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Media Lazy Loading
+    |--------------------------------------------------------------------------
+    */
+    if (config('medialazyload.enabled')) {
+      // Allowed environments
+      if (!in_array(config('app.env'), explode(',', config('medialazyload.allowed_envs')))) {
+        $response->setContent($content);
+        return $response;
+      }
+
+      // Skip urls
       if (!empty(config('medialazyload.skip_urls'))) {
         $currentUrl = $request->path();
         foreach (config('medialazyload.skip_urls') as $item) {
-          if (Str::is($item, $currentUrl)) { return $response; }
+          if (fnmatch($item, $currentUrl)) {
+            $response->setContent($content);
+            return $response;
+          }
         }
       }
 
-      // img, iframe, video and audio
+      // img, iframe, source, video and audio
       $content = preg_replace_callback(
         '/<(img|iframe|source|video|audio)([^>]*?)>/i',
         function ($matches) {
@@ -74,9 +158,9 @@ class MedLazyLoad
       );
 
       // JavaScript code
-      $javascript = "<script>
+      $mediaJs = "<script>
             // Simple and direct lazy loading
-            const observer = new IntersectionObserver((entries) => {
+            const mediaObserver = new IntersectionObserver((entries) => {
               entries.forEach(entry => {
                 if (entry.isIntersecting) {
                   const el = entry.target;
@@ -106,7 +190,7 @@ class MedLazyLoad
                     el.removeAttribute('data-media-bg');
                   }
                   
-                  observer.unobserve(el);
+                  mediaObserver.unobserve(el); // Stop observing
                 }
               });
             }, {
@@ -116,64 +200,15 @@ class MedLazyLoad
 
             // Start observing when page loads
             window.addEventListener('load', () => {
-              document.querySelectorAll('[data-media-src], [data-media-bg]').forEach(el => observer.observe(el));
+              document.querySelectorAll('[data-media-src], [data-media-bg]').forEach(el => mediaObserver.observe(el));
             });
           </script>";
 
-      // JQuery code
-      $jquery = "<script>
-            const observer = new IntersectionObserver((entries) => {
-              entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                  const \$el = \$(entry.target);
-                  
-                  // Handle data-media-src
-                  if (\$el.attr('data-media-src')) {
-                    \$el.attr('src', \$el.attr('data-media-src')).removeAttr('data-media-src');
-                    
-                    // Reload video/audio if needed
-                    if (entry.target.tagName === 'VIDEO' || entry.target.tagName === 'AUDIO') {
-                      entry.target.load();
-                    }
-                    
-                    // Reload parent video/audio for source tags
-                    if (entry.target.tagName === 'SOURCE') {
-                      const parent = \$el.parent('video, audio')[0];
-                      if (parent) parent.load();
-                    }
-                  }
-                  
-                  // Handle data-media-bg
-                  if (\$el.attr('data-media-bg')) {
-                    \$el.css('background-image', 'url(' + \$el.attr('data-media-bg') + ')').removeAttr('data-media-bg');
-                  }
-                  
-                  observer.unobserve(entry.target);
-                }
-              });
-            }, {
-              rootMargin: '" . config('medialazyload.rootMargin') . "',
-              threshold: " . config('medialazyload.threshold') . "
-            });
-        
-            // Start observing when document ready
-            \$(document).ready(() => {
-              \$('[data-media-src], [data-media-bg]').each(function() {
-                observer.observe(this);
-              });
-            });
-          </script>";
-  
-      $javascriptCode = $javascript;
-      if (config('medialazyload.jquery')) {
-        $content = str_replace('</head>', '<script src="' . config('medialazyload.jqueryUrl') . '"></script></head>', $content);
-        $javascriptCode = $jquery;
-      }
-
-      $content = str_replace('</body>', $javascriptCode . '</body>', $content);
-
-      $response->setContent($content);
+      // Add Javascript code
+      $content = str_replace('</body>', $mediaJs . '</body>', $content);
     }
+
+    $response->setContent($content);
 
     return $response;
   }

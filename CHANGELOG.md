@@ -34,3 +34,9 @@
 ## [4.1.0] - 2025-08-24
 ### Fixed
 - Fix some minor code issues.
+
+## [4.2.0] - 2025-09-28
+### Added
+- Lazy loading of HTML was added
+### Removed
+- Jquery option is removed

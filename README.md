@@ -5,13 +5,15 @@ A Laravel package to help users implement media lazy loading using PHP and JavaS
 ## Key Features:
 
 1. Media (images, iframes, videos and audios) lazy loading for faster loading. [Read More...](#enable)
-2. Supports excluding specific routes urls paths from being media lazy loading. [Read More...](#skip-or-ignore-specific-routes-urls)
-3. Supports excluding specific media from lazy loading. [Read More...](#exclude-specific-media-from-lazy-loading)
-4. Configurable to skip lazy loading for specific application Environment. [Read More...](#allowed-environments)
-5. Easy integration with Laravel's middleware system. [Read More...](#register-the-middleware)
-6. Supports lazy loading of background images set via inline CSS `background-image:url(...)`.
-7. Customizable root margin allows you to control when elements start loading relative to their position in the viewport. [Read More...](#root-margin)
-8. Adjustable threshold defines how much of an element must be visible before it loads. [Read More...](#threshold)
+2. HTML lazy loading or defer the rendering process for faster loading. [Read More...](#html-lazy-loading)
+3. Supports excluding specific User Agents (like Googlebot, Bingbot, etc.) from HTML lazy loading. [Read More...](#excluding-user-agents)
+4. Supports excluding specific routes urls paths from being media lazy loading. [Read More...](#skip-or-ignore-specific-routes-urls)
+5. Supports excluding specific media from lazy loading. [Read More...](#exclude-specific-media-from-lazy-loading)
+6. Configurable to skip lazy loading for specific application Environment. [Read More...](#allowed-environments)
+7. Easy integration with Laravel's middleware system. [Read More...](#register-the-middleware)
+8. Supports lazy loading of background images set via inline CSS `background-image:url(...)`.
+9. Customizable root margin allows you to control when elements start loading relative to their position in the viewport. [Read More...](#root-margin)
+10. Adjustable threshold defines how much of an element must be visible before it loads. [Read More...](#threshold)
 
 ## Installation
 
@@ -83,22 +85,63 @@ This is how you can use MediaLazyLoad for Laravel in your project.
 You must set `true` on `enabled` in the `config/medialazyload.php` file enable media lazy loading functionality. For example:
 
 ```php
+// config/medialazyload.php
 'enabled' => env('MEDLAZYLOAD_ENABLED', true),
 ```
+```env
+# .env
+MEDLAZYLOAD_ENABLED=true
+```
 
-### Jquery for Lazy Loading
-If you want to use Jquery to handle lazy loading, then set `true` on `jquery` and you can specify its CDN URL on `jqueryUrl` in the `config/medialazyload.php` file. For example:
+### HTML Lazy Loading
+You can lazy load or defer the rendering of HTML content using the custom **Blade directives** `@lazyHtml` and `@endLazyHtml`. Any content wrapped inside these directives will be placed inside a `<template>` tag, so it won’t render immediately with the rest of the page. This helps speed up the initial render by keeping non-critical content out of the first paint.
+
+For example:
+```blade
+<!-- This HTML will render normally(or NOT be lazy loaded) -->
+<h1>This content is loaded immediately</h1>
+
+<!-- This HTML will be lazy loaded -->
+@lazyHtml
+  <div>
+    <h1>This is lazy HTML content</h1>
+  </div>
+@endLazyHtml
+```
+
+This will compile to:
+```html
+<h1>This content is loaded immediately</h1>
+
+<template class="lazy-html" data-lazyhtml="true">
+  <div>
+    <h1>This is lazy HTML content</h1>
+  </div>
+</template data-lazyhtml>
+```
+
+### Excluding User Agents
+Sometimes you may want to **disable HTML lazy loading** for specific user agents (e.g. search engine crawlers). You can configure this in the package config file `config/medialazyload.php`:
 
 ```php
-'jquery' => env('MEDLAZYLOAD_JQUERY', false),
-'jqueryUrl' => env('MEDLAZYLOAD_JQUERY_URL', 'https://code.jquery.com/jquery-3.7.1.min.js'),
+'excluded_user_agents' => [
+  'Googlebot',
+  'Bingbot',
+  'Slurp',
+],
 ```
+If the current request matches any of these User Agents, the `@lazyHtml` ... `@endLazyHtml` directives will render normally (without `<template>` wrapping).
 
 ### Allowed Environments
 If you want to disable it in specific environments such as during local development or testing to simplify debugging. Then set environments values in a comma (`,`) separated string in the `config/medialazyload.php` file, default `local,production,staging`. For example:
 
 ```php
+// config/medialazyload.php
 'allowed_envs' => env('MEDLAZYLOAD_ALLOWED_ENVS', 'local,production,staging'),
+```
+```env
+# .env
+MEDLAZYLOAD_ALLOWED_ENVS=local,production,staging
 ```
 
 ### Skip or Ignore specific Routes Urls
@@ -141,7 +184,12 @@ If you want certain media (image, iframe, video, audio, or elements with `backgr
 This option allows you to control how early or late the elements should be lazy-loaded relative to their position in the viewport. You can set values in the `config/medialazyload.php` file, default `'0px 0px 100px 0px'`. Format: `'top right bottom left'`. For example:
 
 ```php
+// config/medialazyload.php
 'rootMargin' => env('MEDLAZYLOAD_ROOTMARGIN', '0px 0px 100px 0px'),
+```
+```env
+# .env
+MEDLAZYLOAD_ROOTMARGIN="0px 0px 100px 0px"
 ```
 Here `'0px 0px 100px 0px'` means that elements will start loading 100px before they enter the viewport from the bottom. You can also use percentages (e.g., `'10% 0px 0px 0px'`).
 
@@ -149,7 +197,12 @@ Here `'0px 0px 100px 0px'` means that elements will start loading 100px before t
 This option allows you to control how much of an element must be visible in the viewport before it starts loading. It accepts a value between `0` and `1`. You can set values in the `config/medialazyload.php` file, default `0.1`. For example:
 
 ```php
+// config/medialazyload.php
 'threshold' => env('MEDLAZYLOAD_THRESHOLD', 0.1),
+```
+```env
+# .env
+MEDLAZYLOAD_THRESHOLD=0.1
 ```
 Here `0.1` means the element will start loading when 10% of it is visible in the viewport.
 
