@@ -40,3 +40,7 @@
 - Lazy loading of HTML was added
 ### Removed
 - Jquery option is removed
+
+## [4.2.1] - 2025-09-30
+### Fixed
+- Js issue fixed

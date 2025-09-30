@@ -55,25 +55,46 @@ class MedLazyLoad
           function revealTemplate(template) {
             // Clone template content and insert before the template
             template.parentNode.insertBefore(template.content.cloneNode(true), template);
-
-            // Remove the template itself
-            template.remove();
+            template.remove(); // Remove the template itself
           }
 
           function initLazyTemplates() {
-            const templates = document.querySelectorAll('template.lazy-html[data-lazyhtml=\"true\"]');
-
+            const templates = Array.from(document.querySelectorAll('template.lazy-html[data-lazyhtml=\"true\"]'));
+            if (!templates.length) return;
+            
+            // Create a sentinel for each template and keep them in an array (same order)
+            const sentinels = templates.map(t => {
+              const s = document.createElement('div');
+              s.className = 'lazy-html-sentinel';
+              s.style.cssText = 'width:100%;height:1px;visibility:hidden;pointer-events:none;';
+              s._lazyTemplate = t;
+              t.parentNode.insertBefore(s, t);
+              return s;
+            });
+            
             if (!(\"IntersectionObserver\" in window)) {
-              // Fallback: load all immediately
+              // Fallback: reveal all immediately
               templates.forEach(t => revealTemplate(t));
+              sentinels.forEach(s => s.remove());
               return;
             }
 
+            let currentIndex = 0;
             const observer = new IntersectionObserver((entries, obs) => {
               entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                  revealTemplate(entry.target);
-                  obs.unobserve(entry.target); // Stop observing once revealed
+                if (!entry.isIntersecting) return;
+
+                const sentinel = entry.target;
+                const tpl = sentinel._lazyTemplate;
+                if (tpl) revealTemplate(tpl);
+
+                obs.unobserve(sentinel); // Stop observing once revealed
+                sentinel.remove();
+
+                // move to next sentinel and observe it
+                currentIndex = sentinels.indexOf(sentinel) + 1;
+                if (currentIndex < sentinels.length) {
+                  observer.observe(sentinels[currentIndex]);
                 }
               });
             }, {
@@ -81,11 +102,11 @@ class MedLazyLoad
               threshold: " . config('medialazyload.threshold') . "
             });
 
-            templates.forEach(t => observer.observe(t));
+            // Start by observing only the first sentinel
+            if (sentinels[0]) observer.observe(sentinels[0]);
           }
 
-          // Start observing when page loads
-          window.addEventListener('load', initLazyTemplates);
+          document.addEventListener('DOMContentLoaded', initLazyTemplates);
         </script>";
 
     // Add Javascript code
