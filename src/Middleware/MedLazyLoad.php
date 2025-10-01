@@ -44,8 +44,9 @@ class MedLazyLoad
             ['', ''],
             $content
           );
-
-          break;
+          
+          $response->setContent($content);
+          return $response;
         }
       }
     }
@@ -219,9 +220,31 @@ class MedLazyLoad
               threshold: " . config('medialazyload.threshold') . "
             });
 
-            // Start observing when page loads
-            window.addEventListener('load', () => {
-              document.querySelectorAll('[data-media-src], [data-media-bg]').forEach(el => mediaObserver.observe(el));
+            // Function to observe all lazy elements
+            function observeLazyMedia(root = document) {
+              root.querySelectorAll('[data-media-src], [data-media-bg]').forEach(el => mediaObserver.observe(el));
+            }
+
+            // On initial page load
+            document.addEventListener('DOMContentLoaded', () => {
+              observeLazyMedia();
+
+              // Watch for future DOM changes
+              const mutationObserver = new MutationObserver((mutations) => {
+                mutations.forEach(mutation => {
+                  mutation.addedNodes.forEach(node => {
+                    if (node.nodeType === 1) { // only element nodes
+                      if (node.hasAttribute && (node.hasAttribute('data-media-src') || node.hasAttribute('data-media-bg'))) {
+                        mediaObserver.observe(node);
+                      }
+                      // also check inside injected containers
+                      observeLazyMedia(node);
+                    }
+                  });
+                });
+              });
+
+              mutationObserver.observe(document.body, { childList: true, subtree: true });
             });
           </script>";
 

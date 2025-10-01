@@ -44,3 +44,7 @@
 ## [4.2.1] - 2025-09-30
 ### Fixed
 - Js issue fixed
+
+## [4.2.2] - 2025-10-01
+### Improved
+- Media Javascript improved
