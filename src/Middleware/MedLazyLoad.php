@@ -51,67 +51,69 @@ class MedLazyLoad
       }
     }
 
-    // JavaScript code
-    $htmlJs = "<script>
-          function revealTemplate(template) {
-            // Clone template content and insert before the template
-            template.parentNode.insertBefore(template.content.cloneNode(true), template);
-            template.remove(); // Remove the template itself
-          }
-
-          function initLazyTemplates() {
-            const templates = Array.from(document.querySelectorAll('template.lazy-html[data-lazyhtml=\"true\"]'));
-            if (!templates.length) return;
-            
-            // Create a sentinel for each template and keep them in an array (same order)
-            const sentinels = templates.map(t => {
-              const s = document.createElement('div');
-              s.className = 'lazy-html-sentinel';
-              s.style.cssText = 'width:100%;height:1px;visibility:hidden;pointer-events:none;';
-              s._lazyTemplate = t;
-              t.parentNode.insertBefore(s, t);
-              return s;
-            });
-            
-            if (!(\"IntersectionObserver\" in window)) {
-              // Fallback: reveal all immediately
-              templates.forEach(t => revealTemplate(t));
-              sentinels.forEach(s => s.remove());
-              return;
+    if (preg_match('/<template[^>]*class="lazy-html"[^>]*data-lazyhtml="true"[^>]*>/i', $content)) {
+      // JavaScript code
+      $htmlJs = "<script>
+            function revealTemplate(template) {
+              // Clone template content and insert before the template
+              template.parentNode.insertBefore(template.content.cloneNode(true), template);
+              template.remove(); // Remove the template itself
             }
-
-            let currentIndex = 0;
-            const observer = new IntersectionObserver((entries, obs) => {
-              entries.forEach(entry => {
-                if (!entry.isIntersecting) return;
-
-                const sentinel = entry.target;
-                const tpl = sentinel._lazyTemplate;
-                if (tpl) revealTemplate(tpl);
-
-                obs.unobserve(sentinel); // Stop observing once revealed
-                sentinel.remove();
-
-                // move to next sentinel and observe it
-                currentIndex = sentinels.indexOf(sentinel) + 1;
-                if (currentIndex < sentinels.length) {
-                  observer.observe(sentinels[currentIndex]);
-                }
+  
+            function initLazyTemplates() {
+              const templates = Array.from(document.querySelectorAll('template.lazy-html[data-lazyhtml=\"true\"]'));
+              if (!templates.length) return;
+              
+              // Create a sentinel for each template and keep them in an array (same order)
+              const sentinels = templates.map(t => {
+                const s = document.createElement('div');
+                s.className = 'lazy-html-sentinel';
+                s.style.cssText = 'width:100%;height:1px;visibility:hidden;pointer-events:none;';
+                s._lazyTemplate = t;
+                t.parentNode.insertBefore(s, t);
+                return s;
               });
-            }, {
-              rootMargin: '" . config('medialazyload.rootMargin') . "',
-              threshold: " . config('medialazyload.threshold') . "
-            });
-
-            // Start by observing only the first sentinel
-            if (sentinels[0]) observer.observe(sentinels[0]);
-          }
-
-          document.addEventListener('DOMContentLoaded', initLazyTemplates);
-        </script>";
-
-    // Add Javascript code
-    $content = str_replace('</body>', $htmlJs . '</body>', $content);
+              
+              if (!(\"IntersectionObserver\" in window)) {
+                // Fallback: reveal all immediately
+                templates.forEach(t => revealTemplate(t));
+                sentinels.forEach(s => s.remove());
+                return;
+              }
+  
+              let currentIndex = 0;
+              const observer = new IntersectionObserver((entries, obs) => {
+                entries.forEach(entry => {
+                  if (!entry.isIntersecting) return;
+  
+                  const sentinel = entry.target;
+                  const tpl = sentinel._lazyTemplate;
+                  if (tpl) revealTemplate(tpl);
+  
+                  obs.unobserve(sentinel); // Stop observing once revealed
+                  sentinel.remove();
+  
+                  // move to next sentinel and observe it
+                  currentIndex = sentinels.indexOf(sentinel) + 1;
+                  if (currentIndex < sentinels.length) {
+                    observer.observe(sentinels[currentIndex]);
+                  }
+                });
+              }, {
+                rootMargin: '" . config('medialazyload.rootMargin') . "',
+                threshold: " . config('medialazyload.threshold') . "
+              });
+  
+              // Start by observing only the first sentinel
+              if (sentinels[0]) observer.observe(sentinels[0]);
+            }
+  
+            document.addEventListener('DOMContentLoaded', initLazyTemplates);
+          </script>";
+  
+      // Add Javascript code
+      $content = str_replace('</body>', $htmlJs . '</body>', $content);
+    }
 
     /*
     |--------------------------------------------------------------------------

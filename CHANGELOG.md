@@ -48,3 +48,7 @@
 ## [4.2.2] - 2025-10-01
 ### Improved
 - Media Javascript improved
+
+## [4.2.3] - 2025-10-03
+### Fixed
+- Fix some minor code issues.
