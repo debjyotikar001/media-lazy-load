@@ -52,3 +52,7 @@
 ## [4.2.3] - 2025-10-03
 ### Fixed
 - Fix some minor code issues.
+
+## [4.2.4] - 2026-06-09
+### Laravel 13 Support
+- Laravel 13 Support added.
